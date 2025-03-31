@@ -7,3 +7,4 @@ edition = "2021"
 bevy = { version = "0.13.2" }
 bevy_rapier3d = { version = "0.25.0", features = ["debug-render-3d"] }
 bevy_mod_picking = { version = "0.18.2", default-features = false, features = ["backend_rapier"] }
+

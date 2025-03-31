@@ -1,12 +1,22 @@
-use bevy::prelude::*;
+use bevy::{prelude::*, window::PrimaryWindow};
 use bevy_rapier3d::{
     dynamics::RigidBody,
     geometry::{Collider, ColliderMassProperties},
     plugin::{NoUserData, RapierConfiguration, RapierPhysicsPlugin, TimestepMode},
     render::RapierDebugRenderPlugin
 };
+use bevy::input::mouse::MouseMotion;
+use bevy::time::Stopwatch;
+// use bevy_egui::{egui, EguiContexts, EguiPlugin};
+
 
 mod camera;
+
+#[derive(Resource, Default)]
+struct DebugTimer {
+    stopwatch: Stopwatch,
+}
+
 
 pub fn main() {
     bevy::app::App::new()
@@ -23,12 +33,17 @@ pub fn main() {
             // gravity: Vec3::ZERO,
             ..default()
         })
+        .insert_resource(DebugTimer::default())
         .add_plugins(DefaultPlugins)
         .add_plugins(RapierPhysicsPlugin::<NoUserData>::default())
+        // .add_plugins(EguiPlugin)
         // Uncomment to show bodies as the physics engine sees them
         //.add_plugins(RapierDebugRenderPlugin::default())
         .add_systems(Startup, setup)
+        .add_systems(Startup, render_origin)
         .add_systems(Update, (camera::update_camera_system, camera::accumulate_mouse_events_system))
+        .add_systems(Update, debug)
+        // .add_systems(Update, ui_example_system)
         // Uncomment to draw the global origin
         //.add_systems(Update, render_origin)
         .run();
@@ -177,3 +192,31 @@ fn setup(
         ..default()
     });
 }
+
+fn debug(
+    positions: Query<&Transform, With<RigidBody>>, 
+    windows: Query<&Window, With<PrimaryWindow>>,
+    mut evr_motion: EventReader<MouseMotion>,
+    mut debug_timer: ResMut<DebugTimer>,
+    time: Res<Time>,
+) {
+    debug_timer.stopwatch.tick(time.delta());
+
+    if debug_timer.stopwatch.elapsed_secs() >= 10.0 {
+    let window = windows.get_single().unwrap();
+    println!("Window Width: {}, Window Height: {}",window.width(), window.height());
+    for transform in positions.iter() {
+        println!("Box Coordinates:{} {}", transform.translation.x,transform.translation.y);
+    }
+    debug_timer.stopwatch.reset();
+}
+    for ev in evr_motion.read() {
+        println!("Mouse moved: X: {} px, Y: {} px", ev.delta.x, ev.delta.y);
+    }
+}
+
+// fn ui_example_system(mut contexts: EguiContexts) {
+//     egui::Window::new("Hello").show(contexts.ctx_mut(), |ui| {
+//         ui.label("world");
+//     });
+// }
