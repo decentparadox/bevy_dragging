@@ -7,7 +7,8 @@ use bevy_rapier3d::{
 };
 use bevy::input::mouse::MouseMotion;
 use bevy::time::Stopwatch;
-// use bevy_egui::{egui, EguiContexts, EguiPlugin};
+// use bevy_inspector_egui::quick::WorldInspectorPlugin;
+use bevy_egui::{egui, EguiContexts, EguiPlugin};
 
 
 mod camera;
@@ -36,14 +37,15 @@ pub fn main() {
         .insert_resource(DebugTimer::default())
         .add_plugins(DefaultPlugins)
         .add_plugins(RapierPhysicsPlugin::<NoUserData>::default())
-        // .add_plugins(EguiPlugin)
+        // .add_plugins(WorldInspectorPlugin::new())
+        .add_plugins(EguiPlugin)
         // Uncomment to show bodies as the physics engine sees them
         //.add_plugins(RapierDebugRenderPlugin::default())
         .add_systems(Startup, setup)
         .add_systems(Startup, render_origin)
         .add_systems(Update, (camera::update_camera_system, camera::accumulate_mouse_events_system))
         .add_systems(Update, debug)
-        // .add_systems(Update, ui_example_system)
+        .add_systems(Update, ui_example_system)
         // Uncomment to draw the global origin
         //.add_systems(Update, render_origin)
         .run();
@@ -215,8 +217,8 @@ fn debug(
     }
 }
 
-// fn ui_example_system(mut contexts: EguiContexts) {
-//     egui::Window::new("Hello").show(contexts.ctx_mut(), |ui| {
-//         ui.label("world");
-//     });
-// }
+fn ui_example_system(mut contexts: EguiContexts) {
+    egui::Window::new("Hello").show(contexts.ctx_mut(), |ui| {
+        ui.label("world");
+    });
+}
