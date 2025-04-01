@@ -7,9 +7,12 @@ use bevy_rapier3d::{
 };
 use bevy::input::mouse::MouseMotion;
 use bevy::time::Stopwatch;
-// use bevy_inspector_egui::quick::WorldInspectorPlugin;
-use bevy_egui::{egui, EguiContexts, EguiPlugin};
-
+use bevy_inspector_egui::{
+    quick::WorldInspectorPlugin,
+    bevy_inspector
+};
+use bevy_egui::{egui, EguiPlugin, EguiContexts};
+use bevy_inspector_egui::prelude::*;
 
 mod camera;
 
@@ -37,15 +40,16 @@ pub fn main() {
         .insert_resource(DebugTimer::default())
         .add_plugins(DefaultPlugins)
         .add_plugins(RapierPhysicsPlugin::<NoUserData>::default())
-        // .add_plugins(WorldInspectorPlugin::new())
-        .add_plugins(EguiPlugin)
+        .add_plugins(WorldInspectorPlugin::new())
+        // .add_plugins(EguiPlugin)
+        // .add_plugins(bevy_inspector_egui::DefaultInspectorConfigPlugin)
         // Uncomment to show bodies as the physics engine sees them
         //.add_plugins(RapierDebugRenderPlugin::default())
         .add_systems(Startup, setup)
-        .add_systems(Startup, render_origin)
+        .add_systems(Update, render_origin)
         .add_systems(Update, (camera::update_camera_system, camera::accumulate_mouse_events_system))
-        .add_systems(Update, debug)
-        .add_systems(Update, ui_example_system)
+        // .add_systems(Update, debug)
+        // .add_systems(Update, inspector_ui)
         // Uncomment to draw the global origin
         //.add_systems(Update, render_origin)
         .run();
@@ -195,30 +199,72 @@ fn setup(
     });
 }
 
-fn debug(
-    positions: Query<&Transform, With<RigidBody>>, 
-    windows: Query<&Window, With<PrimaryWindow>>,
-    mut evr_motion: EventReader<MouseMotion>,
-    mut debug_timer: ResMut<DebugTimer>,
-    time: Res<Time>,
-) {
-    debug_timer.stopwatch.tick(time.delta());
+// [TODO: Needs Cleaning]
+// fn debug(
+//     positions: Query<&Transform, With<RigidBody>>, 
+//     windows: Query<&Window, With<PrimaryWindow>>,
+//     mut evr_motion: EventReader<MouseMotion>,
+//     mut debug_timer: ResMut<DebugTimer>,
+//     time: Res<Time>,
+//     mut contexts: EguiContexts
+// ) {
+//     egui::Window::new("Debug").show(contexts.ctx_mut(), |ui| {
+//     debug_timer.stopwatch.tick(time.delta());
 
-    if debug_timer.stopwatch.elapsed_secs() >= 10.0 {
-    let window = windows.get_single().unwrap();
-    println!("Window Width: {}, Window Height: {}",window.width(), window.height());
-    for transform in positions.iter() {
-        println!("Box Coordinates:{} {}", transform.translation.x,transform.translation.y);
-    }
-    debug_timer.stopwatch.reset();
-}
-    for ev in evr_motion.read() {
-        println!("Mouse moved: X: {} px, Y: {} px", ev.delta.x, ev.delta.y);
-    }
-}
+//     if debug_timer.stopwatch.elapsed_secs() >= 10.0 {
+//         let window = windows.get_single().unwrap();
+//         println!("Window Width: {}, Window Height: {}",window.width(), window.height());
+//         // ui.label("Window Width:");
+//         ui.horizontal(|ui| {
+//             ui.label("Window Width:");
+//         });
+//         for transform in positions.iter() {
+//             println!("Box Coordinates:{} {}", transform.translation.x,transform.translation.y);
+//         }
+//         debug_timer.stopwatch.reset();
+//     }
+//     for ev in evr_motion.read() {
+//         println!("Mouse moved: X: {} px, Y: {} px", ev.delta.x, ev.delta.y);
+//     }
+//     });
+// }
 
-fn ui_example_system(mut contexts: EguiContexts) {
-    egui::Window::new("Hello").show(contexts.ctx_mut(), |ui| {
-        ui.label("world");
-    });
-}
+
+
+// fn inspector_ui(
+//     world: &mut World,
+//     positions: Query<&Transform, With<RigidBody>>, 
+//     windows: Query<&Window, With<PrimaryWindow>>,
+//     mut evr_motion: EventReader<MouseMotion>,
+//     mut contexts: EguiContexts
+// ) {
+//     // let mut egui_context = world
+//     // .query_filtered::<&mut EguiContext, With<PrimaryWindow>>()
+//     // .single(world)
+//     // .clone();
+
+//     egui::Window::new("Debug").show(contexts.ctx_mut(), |ui| {
+//         egui::ScrollArea::both().show(ui, |ui| {
+//             // equivalent to `WorldInspectorPlugin`
+            
+//             ui.heading("Debug Info");
+            
+//             for ev in evr_motion.read() {
+//                 let mut delta_x = ev.delta.x;
+//                 let mut delta_y = ev.delta.y;
+//                 ui.label("Mouse Position: X");
+//                 bevy_inspector::ui_for_value(&mut delta_x, ui, world);
+//                 ui.label("Mouse Position: Y");
+//                 bevy_inspector::ui_for_value(&mut delta_y, ui, world);
+//                 println!("Mouse moved: X: {} px, Y: {} px", ev.delta.x, ev.delta.y);
+//             }
+            
+//             ui.heading("Entities");
+//             bevy_inspector::ui_for_world_entities(world, ui);
+//             egui::CollapsingHeader::new("Materials").show(ui, |ui| {
+//                 bevy_inspector::ui_for_assets::<StandardMaterial>(world, ui);
+//             });
+
+//         });
+//     });
+// }
