@@ -1,4 +1,5 @@
 use bevy::{prelude::*, window::PrimaryWindow};
+use bevy_mod_picking::{events::{Click, Drag, Move, Pointer}, prelude::On};
 use bevy_rapier3d::{
     dynamics::RigidBody,
     geometry::{Collider, ColliderMassProperties},
@@ -14,7 +15,9 @@ use bevy_inspector_egui::{
 use bevy_egui::{egui, EguiPlugin, EguiContexts};
 use bevy_inspector_egui::prelude::*;
 
+
 mod camera;
+mod cube;
 
 #[derive(Resource, Default)]
 struct DebugTimer {
@@ -48,6 +51,7 @@ pub fn main() {
         .add_systems(Startup, setup)
         .add_systems(Update, render_origin)
         .add_systems(Update, (camera::update_camera_system, camera::accumulate_mouse_events_system))
+        .add_systems(Update, cube::change_color_on_click_system)
         // .add_systems(Update, debug)
         // .add_systems(Update, inspector_ui)
         // Uncomment to draw the global origin
@@ -101,7 +105,8 @@ fn setup(
 
     // light cube (1 kg)
     commands
-        .spawn((Collider::cuboid(cube_size * 0.5, cube_size * 0.5, cube_size * 0.5), RigidBody::Dynamic))
+        .spawn((Collider::cuboid(cube_size * 0.5, cube_size * 0.5, cube_size * 0.5), RigidBody::Dynamic, ))
+        .insert(cube::Clickable)
         .insert(ColliderMassProperties::Mass(1.0))
         .insert(PbrBundle {
             mesh: meshes.add(Mesh::from(Cuboid::new(cube_size, cube_size, cube_size))),
@@ -109,10 +114,39 @@ fn setup(
             transform: Transform::from_xyz(0.5, 0.5, 0.0),
             ..default()
         });
+        // .insert( On::<Pointer<Click>>::target_commands_mut(|_click, target_commands| {
+        //     print!("hello");
+        // }));
+
+
+        // commands.spawn((
+        //     PbrBundle { 
+        //         mesh: meshes.add(Mesh::from(Cuboid::new(cube_size, cube_size, cube_size))),
+        //         material: materials.add(cube_color),
+        //         transform: Transform::from_xyz(0.5, 0.5, 0.0),
+        //         ..default()
+        //     },
+        //     // These callbacks are run when this entity or its children are interacted with.
+        //     // On::<Pointer<Move>>::run(change_hue_with_vertical_move),
+        //     // Rotate an entity when dragged:
+        //     On::<Pointer<Drag>>::target_component_mut::<Transform>(|drag, transform| {
+        //         print!("drag");
+        //         transform.rotate_local_y(drag.delta.x / 50.0)
+        //     }),
+        //     // Despawn an entity when clicked:
+        //     On::<Pointer<Click>>::target_commands_mut(|_click, target_commands| {
+        //         target_commands.despawn();
+        //     }),
+        //     // Send an event when the pointer is pressed over this entity:
+        //     // On::<Pointer<Down>>::send_event::<DoSomethingComplex>(),
+        // ));
+
+
 
     // heavy cube (10 kg)
     commands
         .spawn((Collider::cuboid(cube_size * 0.5, cube_size * 0.5, cube_size * 0.5), RigidBody::Dynamic))
+        .insert(cube::Clickable)
         .insert(ColliderMassProperties::Mass(10.0))
         .insert(PbrBundle {
             mesh: meshes.add(Mesh::from(Cuboid::new(cube_size, cube_size, cube_size))),
