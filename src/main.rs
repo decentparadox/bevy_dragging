@@ -14,7 +14,7 @@ use bevy_inspector_egui::{
 };
 use bevy_egui::{egui, EguiPlugin, EguiContexts};
 use bevy_inspector_egui::prelude::*;
-
+use bevy_mod_picking::prelude::*;
 
 mod camera;
 mod cube;
@@ -44,6 +44,7 @@ pub fn main() {
         .add_plugins(DefaultPlugins)
         .add_plugins(RapierPhysicsPlugin::<NoUserData>::default())
         .add_plugins(WorldInspectorPlugin::new())
+        .add_plugins(DefaultPickingPlugins)
         // .add_plugins(EguiPlugin)
         // .add_plugins(bevy_inspector_egui::DefaultInspectorConfigPlugin)
         // Uncomment to show bodies as the physics engine sees them
@@ -51,8 +52,8 @@ pub fn main() {
         .add_systems(Startup, setup)
         .add_systems(Update, render_origin)
         .add_systems(Update, (camera::update_camera_system, camera::accumulate_mouse_events_system))
-        .add_systems(Update, cube::change_color_on_click_system)
-        // .add_systems(Update, debug)
+        .add_systems(Update, cube::change_mouse_icon)
+        .add_systems(Update, debug)
         // .add_systems(Update, inspector_ui)
         // Uncomment to draw the global origin
         //.add_systems(Update, render_origin)
@@ -75,6 +76,10 @@ fn setup(
     let transform = Transform::from_translation(translation)
         .looking_at(focus, Vec3::Y);
 
+    commands.spawn((
+            PbrBundle::default(),           // The raycasting backend works with meshes
+            PickableBundle::default(),      // Makes the entity pickable, and adds optional features
+        ));
     commands
         .spawn(Camera3dBundle {
             transform,
@@ -108,6 +113,11 @@ fn setup(
         .spawn((Collider::cuboid(cube_size * 0.5, cube_size * 0.5, cube_size * 0.5), RigidBody::Dynamic, ))
         .insert(cube::Clickable)
         .insert(ColliderMassProperties::Mass(1.0))
+        .insert((PickableBundle::default(), On::<Pointer<Drag>>::target_component_mut::<Transform>(|drag, transform| {
+            transform.rotate_local_y(drag.delta.x / 50.0);
+            transform.translation.x += drag.delta.x / 1000.0;
+            transform.translation.z += drag.delta.y / 1000.0;
+        })))
         .insert(PbrBundle {
             mesh: meshes.add(Mesh::from(Cuboid::new(cube_size, cube_size, cube_size))),
             material: materials.add(cube_color),
@@ -148,6 +158,11 @@ fn setup(
         .spawn((Collider::cuboid(cube_size * 0.5, cube_size * 0.5, cube_size * 0.5), RigidBody::Dynamic))
         .insert(cube::Clickable)
         .insert(ColliderMassProperties::Mass(10.0))
+        .insert((PickableBundle::default(), On::<Pointer<Drag>>::target_component_mut::<Transform>(|drag, transform| {
+            transform.rotate_local_y(drag.delta.x / 50.0);
+            transform.translation.x += drag.delta.x / 1000.0;
+            transform.translation.z += drag.delta.y / 1000.0;
+        })))
         .insert(PbrBundle {
             mesh: meshes.add(Mesh::from(Cuboid::new(cube_size, cube_size, cube_size))),
             material: materials.add(cube_color),
@@ -203,7 +218,10 @@ fn setup(
 
     // floor
     commands
-        .spawn(Collider::cuboid(2.0, 0.1, 2.0))
+        .spawn(
+            Collider::cuboid(2.0, 0.1, 2.0),
+            
+        )
         .insert(SpatialBundle::from_transform(Transform::from_xyz(0.0, -0.1, 0.0)))
         .with_children(|commands| {
             commands.spawn(PbrBundle {
@@ -234,34 +252,33 @@ fn setup(
 }
 
 // [TODO: Needs Cleaning]
-// fn debug(
-//     positions: Query<&Transform, With<RigidBody>>, 
-//     windows: Query<&Window, With<PrimaryWindow>>,
-//     mut evr_motion: EventReader<MouseMotion>,
-//     mut debug_timer: ResMut<DebugTimer>,
-//     time: Res<Time>,
-//     mut contexts: EguiContexts
-// ) {
-//     egui::Window::new("Debug").show(contexts.ctx_mut(), |ui| {
-//     debug_timer.stopwatch.tick(time.delta());
+fn debug(
+    positions: Query<&Transform, With<RigidBody>>, 
+    windows: Query<&Window, With<PrimaryWindow>>,
+    mut evr_motion: EventReader<MouseMotion>,
+    mut debug_timer: ResMut<DebugTimer>,
+    time: Res<Time>,
+) {
 
-//     if debug_timer.stopwatch.elapsed_secs() >= 10.0 {
-//         let window = windows.get_single().unwrap();
-//         println!("Window Width: {}, Window Height: {}",window.width(), window.height());
-//         // ui.label("Window Width:");
-//         ui.horizontal(|ui| {
-//             ui.label("Window Width:");
-//         });
-//         for transform in positions.iter() {
-//             println!("Box Coordinates:{} {}", transform.translation.x,transform.translation.y);
-//         }
-//         debug_timer.stopwatch.reset();
-//     }
-//     for ev in evr_motion.read() {
-//         println!("Mouse moved: X: {} px, Y: {} px", ev.delta.x, ev.delta.y);
-//     }
-//     });
-// }
+    debug_timer.stopwatch.tick(time.delta());
+
+    if debug_timer.stopwatch.elapsed_secs() >= 10.0 {
+        let window = windows.get_single().unwrap();
+        println!("Window Width: {}, Window Height: {}",window.width(), window.height());
+        // ui.label("Window Width:");
+        // ui.horizontal(|ui| {
+        //     ui.label("Window Width:");
+        // });
+        for transform in positions.iter() {
+            println!("Box Coordinates:{} {}", transform.translation.x,transform.translation.y);
+        }
+        debug_timer.stopwatch.reset();
+    }
+    // for ev in evr_motion.read() {
+    //     println!("Mouse moved: X: {} px, Y: {} px", ev.delta.x, ev.delta.y);
+    // }
+
+}
 
 
 
