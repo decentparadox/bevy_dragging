@@ -10,6 +10,7 @@ bevy_mod_picking = { version = "0.18.2", default-features = false, features = ["
 bevy_egui = "0.26.0"
 bevy-inspector-egui = "0.23"
 rand = "0.8"
+crossterm = "0.29.0"
 
 # Enable a small amount of optimization in the dev profile.
 # [profile.dev]
