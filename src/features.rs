@@ -4,7 +4,7 @@ use bevy::{prelude::*, window::PrimaryWindow};
 use bevy_mod_picking::events::{Drag, Pointer};
 use bevy_rapier3d::dynamics::RigidBody;
 
-use crate::change_mouse_pointer;
+use crate::aesthetics;
 
 #[derive(Resource, Default)]
 pub struct DebugTimer {
@@ -63,7 +63,7 @@ pub fn update_camera_orientation(
 
 pub fn handle_cube_drag(
     mut drag_events: EventReader<Pointer<Drag>>,
-    mut query: Query<&mut Transform, With<change_mouse_pointer::Clickable>>,
+    mut query: Query<&mut Transform, With<aesthetics::Clickable>>,
     camera_orientation: Res<CameraOrientation>,
     keys: Res<ButtonInput<KeyCode>>,
     

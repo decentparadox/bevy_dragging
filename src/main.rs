@@ -14,7 +14,7 @@ use bevy_rapier3d::{
 
 
 mod camera;
-mod change_mouse_pointer;
+mod aesthetics;
 mod features;
 
 
@@ -48,7 +48,7 @@ pub fn main() {
                 camera::accumulate_mouse_events_system,
             ),
         )
-        .add_systems(Update, change_mouse_pointer::change_mouse_icon)
+        .add_systems(Update, aesthetics::change_mouse_icon)
         .add_systems(Update, features::debug)
         .add_systems(Update, (features::update_camera_orientation, features::handle_cube_drag))
         .run();
@@ -103,7 +103,7 @@ fn setup(
             Collider::cuboid(cube_size * 0.5, cube_size * 0.5, cube_size * 0.5),
             RigidBody::Dynamic,
         ))
-        .insert(change_mouse_pointer::Clickable)
+        .insert(aesthetics::Clickable)
         .insert(ColliderMassProperties::Mass(1.0))
         .insert(PbrBundle {
             mesh: meshes.add(Mesh::from(Cuboid::new(cube_size, cube_size, cube_size))),
@@ -118,7 +118,7 @@ fn setup(
             Collider::cuboid(cube_size * 0.5, cube_size * 0.5, cube_size * 0.5),
             RigidBody::Dynamic,
         ))
-        .insert(change_mouse_pointer::Clickable)
+        .insert(aesthetics::Clickable)
         .insert(ColliderMassProperties::Mass(10.0))
         .insert(PbrBundle {
             mesh: meshes.add(Mesh::from(Cuboid::new(cube_size, cube_size, cube_size))),
