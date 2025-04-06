@@ -15,13 +15,31 @@ use bevy_inspector_egui::{
 use bevy_egui::{egui, EguiPlugin, EguiContexts};
 use bevy_inspector_egui::prelude::*;
 use bevy_mod_picking::prelude::*;
+use bevy::window::CursorIcon;
+use bevy_rapier3d::prelude::*;
+use rand::Rng;
 
 mod camera;
-mod cube;
+
+#[derive(Component)]
+pub struct Clickable;
+
 
 #[derive(Resource, Default)]
 struct DebugTimer {
     stopwatch: Stopwatch,
+}
+
+#[derive(Component)]
+pub struct Dragged {
+    pub start_position: Vec3,
+    pub start_cursor_position: Vec2,
+}
+
+#[derive(Resource, Default)]
+pub struct CameraOrientation {
+    pub forward: Vec3,
+    pub right: Vec3,
 }
 
 
@@ -41,6 +59,7 @@ pub fn main() {
             ..default()
         })
         .insert_resource(DebugTimer::default())
+        .insert_resource(CameraOrientation::default())
         .add_plugins(DefaultPlugins)
         .add_plugins(RapierPhysicsPlugin::<NoUserData>::default())
         .add_plugins(WorldInspectorPlugin::new())
@@ -52,11 +71,11 @@ pub fn main() {
         .add_systems(Startup, setup)
         .add_systems(Update, render_origin)
         .add_systems(Update, (camera::update_camera_system, camera::accumulate_mouse_events_system))
-        .add_systems(Update, cube::change_mouse_icon)
+        .add_systems(Update, change_mouse_icon)
         .add_systems(Update, debug)
+        .add_systems(Update, (update_camera_orientation,handle_cube_drag)) 
         // .add_systems(Update, inspector_ui)
         // Uncomment to draw the global origin
-        //.add_systems(Update, render_origin)
         .run();
 }
 
@@ -111,13 +130,8 @@ fn setup(
     // light cube (1 kg)
     commands
         .spawn((Collider::cuboid(cube_size * 0.5, cube_size * 0.5, cube_size * 0.5), RigidBody::Dynamic, ))
-        .insert(cube::Clickable)
+        .insert(Clickable)
         .insert(ColliderMassProperties::Mass(1.0))
-        .insert((PickableBundle::default(), On::<Pointer<Drag>>::target_component_mut::<Transform>(|drag, transform| {
-            transform.rotate_local_y(drag.delta.x / 50.0);
-            transform.translation.x += drag.delta.x / 1000.0;
-            transform.translation.z += drag.delta.y / 1000.0;
-        })))
         .insert(PbrBundle {
             mesh: meshes.add(Mesh::from(Cuboid::new(cube_size, cube_size, cube_size))),
             material: materials.add(cube_color),
@@ -129,40 +143,13 @@ fn setup(
         // }));
 
 
-        // commands.spawn((
-        //     PbrBundle { 
-        //         mesh: meshes.add(Mesh::from(Cuboid::new(cube_size, cube_size, cube_size))),
-        //         material: materials.add(cube_color),
-        //         transform: Transform::from_xyz(0.5, 0.5, 0.0),
-        //         ..default()
-        //     },
-        //     // These callbacks are run when this entity or its children are interacted with.
-        //     // On::<Pointer<Move>>::run(change_hue_with_vertical_move),
-        //     // Rotate an entity when dragged:
-        //     On::<Pointer<Drag>>::target_component_mut::<Transform>(|drag, transform| {
-        //         print!("drag");
-        //         transform.rotate_local_y(drag.delta.x / 50.0)
-        //     }),
-        //     // Despawn an entity when clicked:
-        //     On::<Pointer<Click>>::target_commands_mut(|_click, target_commands| {
-        //         target_commands.despawn();
-        //     }),
-        //     // Send an event when the pointer is pressed over this entity:
-        //     // On::<Pointer<Down>>::send_event::<DoSomethingComplex>(),
-        // ));
-
 
 
     // heavy cube (10 kg)
     commands
         .spawn((Collider::cuboid(cube_size * 0.5, cube_size * 0.5, cube_size * 0.5), RigidBody::Dynamic))
-        .insert(cube::Clickable)
+        .insert(Clickable)
         .insert(ColliderMassProperties::Mass(10.0))
-        .insert((PickableBundle::default(), On::<Pointer<Drag>>::target_component_mut::<Transform>(|drag, transform| {
-            transform.rotate_local_y(drag.delta.x / 50.0);
-            transform.translation.x += drag.delta.x / 1000.0;
-            transform.translation.z += drag.delta.y / 1000.0;
-        })))
         .insert(PbrBundle {
             mesh: meshes.add(Mesh::from(Cuboid::new(cube_size, cube_size, cube_size))),
             material: materials.add(cube_color),
@@ -251,7 +238,6 @@ fn setup(
     });
 }
 
-// [TODO: Needs Cleaning]
 fn debug(
     positions: Query<&Transform, With<RigidBody>>, 
     windows: Query<&Window, With<PrimaryWindow>>,
@@ -265,57 +251,96 @@ fn debug(
     if debug_timer.stopwatch.elapsed_secs() >= 10.0 {
         let window = windows.get_single().unwrap();
         println!("Window Width: {}, Window Height: {}",window.width(), window.height());
-        // ui.label("Window Width:");
-        // ui.horizontal(|ui| {
-        //     ui.label("Window Width:");
-        // });
         for transform in positions.iter() {
             println!("Box Coordinates:{} {}", transform.translation.x,transform.translation.y);
         }
+        for ev in evr_motion.read() {
+         println!("Mouse moved: X: {} px, Y: {} px", ev.delta.x, ev.delta.y);
+        }
         debug_timer.stopwatch.reset();
     }
-    // for ev in evr_motion.read() {
-    //     println!("Mouse moved: X: {} px, Y: {} px", ev.delta.x, ev.delta.y);
-    // }
+
 
 }
 
+fn update_camera_orientation(
+    mut camera_orientation: ResMut<CameraOrientation>,
+    camera_query: Query<&GlobalTransform, With<Camera3d>>,
+) {
+    if let Ok(camera_transform) = camera_query.get_single() {
+        let forward = camera_transform.forward();
+        let right = forward.cross(Vec3::Y).normalize();
+
+        camera_orientation.forward = Vec3::Y.cross(right).normalize(); // make sure it's orthogonal
+        camera_orientation.right = right;
+    }
+}
+
+fn handle_cube_drag(
+    mut drag_events: EventReader<Pointer<Drag>>,
+    mut query: Query<&mut Transform, With<Clickable>>,
+    camera_orientation: Res<CameraOrientation>,
+) {
+    for event in drag_events.read() {
+        if let Ok(mut transform) = query.get_mut(event.target) {
+            let dx = event.delta.x / 250.0;
+            let dz = event.delta.y / 250.0;
+
+            transform.translation += camera_orientation.right * dx;
+            transform.translation -= camera_orientation.forward * dz;
+        }
+    }
+}
 
 
-// fn inspector_ui(
-//     world: &mut World,
-//     positions: Query<&Transform, With<RigidBody>>, 
-//     windows: Query<&Window, With<PrimaryWindow>>,
-//     mut evr_motion: EventReader<MouseMotion>,
-//     mut contexts: EguiContexts
-// ) {
-//     // let mut egui_context = world
-//     // .query_filtered::<&mut EguiContext, With<PrimaryWindow>>()
-//     // .single(world)
-//     // .clone();
+pub fn change_mouse_icon(
+    mut commands: Commands,
+    input_mouse: Res<ButtonInput<MouseButton>>,
+    mut windows: Query<&mut bevy::prelude::Window>,
+    cameras: Query<(&Camera, &GlobalTransform)>,
+    rapier_context: Res<RapierContext>,
+    mut param_set: ParamSet<(
+        Query<(Entity, &mut Transform), With<Clickable>>,
+        Query<(&mut Transform, &Dragged)>,
+    )>,
+) {
+    let mut primary_window = windows.single_mut();
 
-//     egui::Window::new("Debug").show(contexts.ctx_mut(), |ui| {
-//         egui::ScrollArea::both().show(ui, |ui| {
-//             // equivalent to `WorldInspectorPlugin`
-            
-//             ui.heading("Debug Info");
-            
-//             for ev in evr_motion.read() {
-//                 let mut delta_x = ev.delta.x;
-//                 let mut delta_y = ev.delta.y;
-//                 ui.label("Mouse Position: X");
-//                 bevy_inspector::ui_for_value(&mut delta_x, ui, world);
-//                 ui.label("Mouse Position: Y");
-//                 bevy_inspector::ui_for_value(&mut delta_y, ui, world);
-//                 println!("Mouse moved: X: {} px, Y: {} px", ev.delta.x, ev.delta.y);
-//             }
-            
-//             ui.heading("Entities");
-//             bevy_inspector::ui_for_world_entities(world, ui);
-//             egui::CollapsingHeader::new("Materials").show(ui, |ui| {
-//                 bevy_inspector::ui_for_assets::<StandardMaterial>(world, ui);
-//             });
+    if input_mouse.just_pressed(MouseButton::Left) {
+        if let Some(cursor_pos) = primary_window.cursor_position() {
+            if let Some((camera, camera_transform)) = cameras.iter().next() {
+                if let Some(ray) = camera.viewport_to_world(camera_transform, cursor_pos) {
+                    let ray_origin = ray.origin;
+                    let ray_direction = ray.direction;
 
-//         });
-//     });
-// }
+                    if let Some((entity, _toi)) = rapier_context.cast_ray(
+                        ray_origin,
+                        *ray_direction,
+                        f32::MAX,
+                        true,
+                        QueryFilter::default(),
+                    ) {
+                        if let Ok((_, mut transform)) = param_set.p0().get_mut(entity) {
+                             commands.entity(entity).insert(Dragged {
+                                start_position: transform.translation,
+                                start_cursor_position: cursor_pos,
+                            });
+                            primary_window.cursor.icon = CursorIcon::Move;
+                            println!("Mouse clicked on entity: {:?}", entity);
+                            println!("mouse position: {:?}", cursor_pos);
+                        } else {
+                            primary_window.cursor.icon = CursorIcon::Default;
+                        }
+                    } else {
+                        primary_window.cursor.icon = CursorIcon::Default;
+                    }
+                }
+            }
+        }
+    } else if input_mouse.just_released(MouseButton::Left) {
+        for (entity, _) in param_set.p0().iter() {
+            commands.entity(entity).remove::<Dragged>();
+        }
+        primary_window.cursor.icon = CursorIcon::Default;
+    }
+}
