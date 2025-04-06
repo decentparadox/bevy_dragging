@@ -65,12 +65,16 @@ pub fn handle_cube_drag(
     mut drag_events: EventReader<Pointer<Drag>>,
     mut query: Query<&mut Transform, With<change_mouse_pointer::Clickable>>,
     camera_orientation: Res<CameraOrientation>,
+    keys: Res<ButtonInput<KeyCode>>,
+    
 ) {
     for event in drag_events.read() {
         if let Ok(mut transform) = query.get_mut(event.target) {
             let dx = event.delta.x / 500.0;
             let dz = event.delta.y / 500.0;
-            transform.rotate_local_y(event.delta.x / 50.0);
+            if !keys.pressed(KeyCode::ControlLeft) {
+                transform.rotate_local_y(event.delta.x / 250.0);
+            }          
             transform.translation += camera_orientation.right * dx;
             transform.translation -= camera_orientation.forward * dz;
         }
