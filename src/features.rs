@@ -73,7 +73,8 @@ pub fn handle_cube_drag(
             let dx = event.delta.x / 500.0;
             let dz = event.delta.y / 500.0;
             if !keys.pressed(KeyCode::ControlLeft) {
-                transform.rotate_local_y(event.delta.x / 250.0);
+                transform.rotate_y(dz * 1.002);
+                transform.rotate_x(dx * 1.002);
             }          
             transform.translation += camera_orientation.right * dx;
             transform.translation -= camera_orientation.forward * dz;
